@@ -122,7 +122,7 @@ getInfoTable n = goGet n []
 
 -- | get's an info table specified by a provided header
 getInfoTableFromHeader :: Header -> G.Get InfoTable
-getInfoTableFromHeader (Header NotWad _ _) = return ()
+getInfoTableFromHeader (Header NotWad _ _) = return []
 getInfoTableFromHeader (Header _ numLumps offset) = (G.skip . fromIntegral . toInteger $ offset)
                                                     >>= (\_ -> getInfoTable . toInteger $ numLumps)
 -- ^
