@@ -74,6 +74,12 @@ getWadHeader = do
   return $! Header wadtype numLumps infoTablePtr
 -- ^
 
+-- | Checks wether or not the file contains a valid header for a doom file
+checkForValidHeader :: Header -> Bool
+checkForValidHeader (Header NotWad _ _) = False
+checkForValidHeader _ = True
+-- ^
+
 {-^ Headers -}
 
 -----
@@ -116,6 +122,7 @@ getInfoTable n = goGet n []
 
 -- | get's an info table specified by a provided header
 getInfoTableFromHeader :: Header -> G.Get InfoTable
+getInfoTableFromHeader (Header NotWad _ _) = return ()
 getInfoTableFromHeader (Header _ numLumps offset) = (G.skip . fromIntegral . toInteger $ offset)
                                                     >>= (\_ -> getInfoTable . toInteger $ numLumps)
 -- ^
