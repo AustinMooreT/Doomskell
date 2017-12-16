@@ -18,12 +18,17 @@ getCharle = do
 
 -- | Extends binary's get to n sized strings
 getStringle :: Integer -> G.Get String
-getStringle n = goGet n []
+getStringle n = getList n getCharle
+-- ^
+
+-- | Extends binary's get to lists of size n
+getList :: Integer -> G.Get a -> G.Get [a]
+getList n t = goGet n []
   where
     goGet 0 s = return $! reverse s
     goGet m s = do
-      char <- getCharle
-      goGet (m - 1) (char:s)
+      item <- t
+      goGet (m - 1) (item:s)
 -- ^
 
 {-^ Ends extended get functions-}

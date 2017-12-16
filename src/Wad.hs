@@ -90,12 +90,7 @@ type InfoTable = [LumpInfo]
 
 -- | return get monad containing the infotable
 getInfoTable :: Integer -> G.Get InfoTable
-getInfoTable n = goGet n []
-  where
-  goGet 0 s = return $! reverse s
-  goGet m s = do
-    lumpInfo <- getLumpInfo
-    goGet (m - 1) (lumpInfo:s)
+getInfoTable n = getList n getLumpInfo
 -- ^
 
 -- | get's an info table specified by a provided header

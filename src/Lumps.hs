@@ -44,12 +44,7 @@ type Palette = ARR.Array Integer RGB
 
 -- | get's a palette of 256 rgb values from a byte string.
 getPalette :: G.Get Palette
-getPalette = goGet 256 [] >>= (\x -> return $! ARR.listArray (0,255) x)
-  where
-    goGet 0 s = return $! reverse s
-    goGet n s = do
-      rgb <- getRGB
-      goGet (n - 1) (rgb:s)
+getPalette = getList 256 getRGB >>= (\x -> return $! ARR.listArray (0,255) x)
 -- ^
 
 -- | Type representing the PLAYPAL lup
@@ -58,12 +53,12 @@ type PLAYPAL = ARR.Array Integer Palette
 
 -- | Extracts a playpal lump from a bytestring.
 getPLAYPAL :: G.Get PLAYPAL
-getPLAYPAL = goGet 14 [] >>= (\x -> return $! ARR.listArray (0,14) x)
-  where
-    goGet 0 s = return $! reverse s
-    goGet n s = do
-      palet <- getPalette
-      goGet (n - 1) (palet:s)
+getPLAYPAL = getList 14 getPalette >>= (\x -> return $! ARR.listArray (0,14) x)
+-- ^
+
+-- | turns a bytestring into a PLAYPAL structure
+readPLAYPAL :: BSL.ByteString -> PLAYPAL
+readPLAYPAL bs = G.runGet getPLAYPAL bs
 -- ^
 
 {-^ End PLAYPAL-}
@@ -83,22 +78,12 @@ getIndex = G.getWord8
 type Map = ARR.Array Integer Index
 
 getMap :: G.Get Map
-getMap = goGet 256 [] >>= (\x -> return $! ARR.listArray (0,255) x)
-  where
-    goGet 0 s = return $! reverse s
-    goGet n s = do
-      index <- getIndex
-      goGet (n - 1) (index:s)
+getMap = getList 256 getIndex >>= (\x -> return $! ARR.listArray (0,255) x)
 
 type COLORMAP = ARR.Array Integer Map
 
 getCOLORMAP :: G.Get COLORMAP
-getCOLORMAP = goGet 34 [] >>= (\x -> return $! ARR.listArray (0,33) x)
-  where
-    goGet 0 s = return $! reverse s
-    goGet n s = do
-      map_ <- getMap
-      goGet (n - 1) (map_:s)
+getCOLORMAP = getList 34 getMap >>= (\x -> return $! ARR.listArray (0,33) x)
 
 {-^ End COLORMAP-}
 
@@ -126,12 +111,7 @@ getPatch = do
   return $! Patch offx offy indx
 
 getPatches :: Integer -> G.Get [Patch]
-getPatches n = goGet n []
-  where
-    goGet 0 s = return $! reverse s
-    goGet m s = do
-      ptch <- getPatch
-      goGet (m - 1) (ptch:s)
+getPatches n = getList n getPatch
 
 data Texture =
   Texture
@@ -152,20 +132,19 @@ getTexture = do
   nPtch <- G.getInt16le
   (return (Texture  name  widt  heig)) >>= (\x -> (getPatches . toInteger $ nPtch) >>= (\y -> return $! x y))
 
-getTextures :: Integer -> G.Get [Texture]
-getTextures n = goGet n []
-  where
-    goGet 0 s = return $! reverse s
-    goGet m s = do
-      tex <- getTexture
-      goGet (m - 1) (tex:s)
-
 data TEXTURE =
   TEXTURE
   {
-    
+    numTextures :: I.Int32,
+    textures :: [Texture]
   }
 
+readTEXTURE :: BSL.ByteString -> TEXTURE
+readTEXTURE bs = TEXTURE num (map ($ bs) (map (G.runGet) (map ($ getTexture) (map (>>) (map (G.skip) ptrs)))))
+  where
+    num = G.runGet G.getInt32le bs
+    ptrs = map (fromIntegral . toInteger) (G.runGet (getList (fromIntegral . toInteger $ num) G.getInt32le) bs)
+    
 {-^ End TEXTUREN-}
 
 
