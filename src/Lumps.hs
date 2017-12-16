@@ -8,11 +8,12 @@ import qualified Data.Int as I
 import qualified Wad as W
 import qualified Data.Word as DW
 import qualified Data.Array.Unboxed as ARR
+import Lib
 
 {- | PLAYPAL
  - PLAYPAL refers to the color pallette used
  - 14 palettes with 256 rgb triples in each palette
--}
+ -}
 
 -- | A color is just a single color type represente by an 8 bit value
 type Color = DW.Word8
@@ -72,7 +73,7 @@ getPLAYPAL = goGet 14 [] >>= (\x -> return $! ARR.listArray (0,14) x)
 {- | COLORMAP
  - Think of the colormap lump as a transformation to different brightness levels.
  - It maps a specific brightness level to a color in PLAYPAL.
--}
+ -}
 
 type Index = DW.Word8
 
@@ -96,20 +97,85 @@ getCOLORMAP = goGet 34 [] >>= (\x -> return $! ARR.listArray (0,33) x)
   where
     goGet 0 s = return $! reverse s
     goGet n s = do
-      map <- getMap
-      goGet (n - 1) (map:s)
+      map_ <- getMap
+      goGet (n - 1) (map_:s)
 
 {-^ End COLORMAP-}
 
 ------
+
+{- | TEXTUREN
+ - There are two types of TEXTURE lumps one in Doom1 wad (shareware), and one in Doom wad (paid)
+ - They each contain the set of wall textures used in the game.
+ -}
+
+data Patch =
+  Patch
+  {
+    ptchXOffset :: I.Int16,
+    ptchYOffset :: I.Int16,
+    pnameIndex :: I.Int16
+  }
+
+getPatch :: G.Get Patch
+getPatch = do
+  offx <- G.getInt16le
+  offy <- G.getInt16le
+  indx <- G.getInt16le
+  _ <- G.skip 4 -- Two integers that are never used. If I need them check the unofficial docs.
+  return $! Patch offx offy indx
+
+getPatches :: Integer -> G.Get [Patch]
+getPatches n = goGet n []
+  where
+    goGet 0 s = return $! reverse s
+    goGet m s = do
+      ptch <- getPatch
+      goGet (m - 1) (ptch:s)
+
+data Texture =
+  Texture
+  {
+    tname :: String,
+    twidth :: I.Int16,
+    theight :: I.Int16,
+    patches :: [Patch]
+  }
+
+getTexture :: G.Get Texture
+getTexture = do
+  name <- getStringle 8
+  _ <- G.skip 4 -- Two empty integers again.
+  widt <- G.getInt16le
+  heig <- G.getInt16le
+  _ <- G.skip 4 -- Two empty integers again.
+  nPtch <- G.getInt16le
+  (return (Texture  name  widt  heig)) >>= (\x -> (getPatches . toInteger $ nPtch) >>= (\y -> return $! x y))
+
+getTextures :: Integer -> G.Get [Texture]
+getTextures n = goGet n []
+  where
+    goGet 0 s = return $! reverse s
+    goGet m s = do
+      tex <- getTexture
+      goGet (m - 1) (tex:s)
+
+data TEXTURE =
+  TEXTURE
+  {
+    
+  }
+
+{-^ End TEXTUREN-}
+
 
 {- | Picture format -}
 
 data Header =
   Header
   {
-    width :: I.Int16,
-    height :: I.Int16,
+    picwidth :: I.Int16,
+    picheight :: I.Int16,
     lefOffset :: I.Int16,
     topOffset :: I.Int16
   }
