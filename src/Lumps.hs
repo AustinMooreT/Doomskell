@@ -132,21 +132,38 @@ getTexture = do
   nPtch <- G.getInt16le
   (return (Texture  name  widt  heig)) >>= (\x -> (getPatches . toInteger $ nPtch) >>= (\y -> return $! x y))
 
-data TEXTURE =
-  TEXTURE
-  {
-    numTextures :: I.Int32,
-    textures :: [Texture]
-  }
+type TEXTURE = [Texture]
 
 readTEXTURE :: BSL.ByteString -> TEXTURE
-readTEXTURE bs = TEXTURE num (map ($ bs) (map (G.runGet) (map ($ getTexture) (map (>>) (map (G.skip) ptrs)))))
+readTEXTURE bs = (map ($ bs) (map (G.runGet) (map ($ getTexture) (map (>>) (map (G.skip) ptrs)))))
   where
     num = G.runGet G.getInt32le bs
     ptrs = map (fromIntegral . toInteger) (G.runGet (getList (fromIntegral . toInteger $ num) G.getInt32le) bs)
-    
+
 {-^ End TEXTUREN-}
 
+--------
+
+{- | PNAMES
+ - PNAMES represent names used by walls in doom
+ -}
+
+type PNAME = String
+
+getPNAME :: G.Get PNAME
+getPNAME = getStringle 8
+
+type PNAMES = [String]
+
+getPNAMES :: G.Get PNAMES
+getPNAMES = do
+  numNames <- G.getInt32le
+  names <- getList (fromIntegral . toInteger $ numNames) getPNAME
+  return names
+
+{-^ End PNAMES-}
+
+-------
 
 {- | Picture format -}
 
