@@ -167,23 +167,28 @@ getPNAMES = do
 
 {- | Picture format -}
 
-data Header =
-  Header
+data PictureHeader =
+  PictureHeader
   {
     picwidth :: I.Int16,
     picheight :: I.Int16,
-    lefOffset :: I.Int16,
-    topOffset :: I.Int16
+    pxOffset :: I.Int16,
+    pyOffset :: I.Int16
   }
 
-getPictureHeader :: G.Get Header
+getPictureHeader :: G.Get PictureHeader
 getPictureHeader = do
   w <- G.getInt16le
   h <- G.getInt16le
   l <- G.getInt16le
   t <- G.getInt16le
-  return $! Header w h l t
+  return $! PictureHeader w h l t
 
-
+data ColumnHeader =
+  ColumnHeader
+  {
+    cyOffset :: I.Int
+  }
 
 {-^-}
+
