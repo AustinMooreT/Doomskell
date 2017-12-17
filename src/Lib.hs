@@ -32,3 +32,10 @@ getList n t = goGet n []
 -- ^
 
 {-^ Ends extended get functions-}
+
+{- | Functions for String manipulation.-}
+
+trimPaddedString :: String -> String
+trimPaddedString = filter (/= '0')
+
+{- ^ End String manip-}
