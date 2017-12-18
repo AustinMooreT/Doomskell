@@ -1,4 +1,4 @@
-module Wad (Wad,
+module Wad (WAD,
             Lump,
             LumpInfo,
             WadType) where
@@ -34,7 +34,7 @@ getWadType = getStringle 4 >>= (\str -> return $! wadTypeFromStr str)
 
 -- | Data structure representing the header of the WAD file.
 data WadHeader =
-  Header
+  WadHeader
   {
     wadtype :: WadType, -- Wad type
     numLumps :: I.Int32, -- Number of lumps
@@ -45,12 +45,12 @@ data WadHeader =
 
 -- | Returns a get monad representing the action of extracting the WAD header.
 getWadHeader :: G.Get WadHeader
-getWadHeader = Header <$> getWadType <*> G.getInt32le <*> G.getInt32le
+getWadHeader = WadHeader <$> getWadType <*> G.getInt32le <*> G.getInt32le
 -- ^
 
 -- | Checks wether or not the file contains a valid header for a DOOM WAD file
 checkForValidHeader :: WadHeader -> Bool
-checkForValidHeader (Header NotWad _ _) = False
+checkForValidHeader (WadHeader NotWad _ _) = False
 checkForValidHeader _ = True
 -- ^
 
@@ -101,8 +101,8 @@ getInfoTable n = getList n getLumpInfo
 
 -- | gets an info table specified by a provided header
 getInfoTableFromHeader :: WadHeader -> G.Get InfoTable
-getInfoTableFromHeader (Header NotWad _ _) = return []
-getInfoTableFromHeader (Header _ numLumps offset) = (G.skip . fromIntegral . toInteger $ offset) >>
+getInfoTableFromHeader (WadHeader NotWad _ _) = return []
+getInfoTableFromHeader (WadHeader _ numLumps offset) = (G.skip . fromIntegral . toInteger $ offset) >>
                                                     (getInfoTable . toInteger $ numLumps)
 -- ^
 
@@ -124,8 +124,8 @@ getLump info = (G.skip . fromIntegral . toInteger . lumpOffset $ info) >>
 -- ^
 
 -- | Returns a list get actions for lumps.
-getLumps :: InfoTable -> [G.Get Lump]
-getLumps = map getLump
+getLumps :: InfoTable -> G.Get [Lump]
+getLumps = mapM (G.lookAhead . getLump)
 -- ^
 
 {-^ End Lumps-}
@@ -139,21 +139,23 @@ getLumps = map getLump
  -}
 
 -- | data structure representing a parsed wad file
-data  Wad = Wad
+data WAD = WAD
          {
-           header :: WadHeader,
-           lumps :: [Lump]
+           wadHeader :: WadHeader,
+           wadLumps :: [Lump]
          }
   deriving (Show, Eq)
 -- ^
 
--- | read a wad file at a given directory into an io monad
-readWad :: String -> IO Wad
-readWad s = headr >>= (\x -> lums >>= (\y -> return $! Wad x y))
+-- | Returns a get monad representing the action of extracting the WAD data structure from a byte string.
+getWAD :: G.Get WAD
+getWAD = WAD <$> header <*> lumps
   where
-    file = BSL.readFile s
-    headr = file >>= (\x -> return $! G.runGet getWadHeader x)
-    lumpInfoTable = file >>= (\x -> headr >>= (\y -> return $! G.runGet (getInfoTableFromHeader y) x))
-    lums = file >>= (\x -> lumpInfoTable >>= (\y -> return $! map ($ x) (map (G.runGet) (getLumps y))))
+    header = G.lookAhead getWadHeader
+    infoTable = header >>= (\header_ -> G.lookAhead $! getInfoTableFromHeader header_)
+    lumps = infoTable >>= (\infoTable_ -> getLumps infoTable_)
 -- ^
-{-^-}
+
+{-^ End WAD -}
+
+--------------
