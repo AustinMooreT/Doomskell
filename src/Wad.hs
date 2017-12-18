@@ -6,6 +6,8 @@ module Wad (WAD,
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.Binary.Get as G
 import qualified Data.Int as I
+import qualified Data.Word as DW
+import qualified Data.Array.Unboxed as ARR
 import Lib
 
 {- |
@@ -159,3 +161,72 @@ getWAD = WAD <$> header <*> lumps
 {-^ End WAD -}
 
 --------------
+
+{- |
+ - PLAYPAL represents the colors used by DOOM in representing pixel colors.
+ - The PLAYPAL contains 14 palettes with 256 3 byte RGB triples in each palette.
+ -}
+
+-- | Type alias to a byte.
+type ColorChannel = DW.Word8
+-- ^
+
+-- | Data structure representing an RGB color channel.
+data RGB =
+  RGB
+  {
+    redChannel :: ColorChannel,
+    greenChannel :: ColorChannel,
+    blueChannel :: ColorChannel
+  }
+-- ^
+
+-- | Returns a Get monad representing the action of retrieving an RGB triple from a ByteString.
+getRGB :: G.Get RGB
+getRGB = RGB <$> G.getWord8 <*> G.getWord8 <*> G.getWord8
+-- ^
+
+-- | Type alias to an array of RGB color values for fast indexing.
+type Palette = ARR.Array Integer RGB
+-- ^
+
+-- | Returns a Get monad representing the action of retrieving a Palette of RGB triples from a ByteString.
+getPalette :: G.Get Palette
+getPalette = getList 256 getRGB >>= (\palette -> return $! ARR.listArray (0,255) palette)
+-- ^
+
+-- | Type alias to an array of Palettes for fast indexing.
+type PLAYPAL = ARR.Array Integer Palette
+-- ^
+
+-- | Extracts a playpal lump from a bytestring.
+getPLAYPAL :: G.Get PLAYPAL
+getPLAYPAL = getList 14 getPalette >>= (\playpal -> return $! ARR.listArray (0,14) playpal)
+-- ^
+
+{-^ End PLAYPAL -}
+
+------------------
+
+{- |
+ - COLORMAP
+ - Think of the colormap lump as a transformation to different brightness levels.
+ - It maps a specific brightness level to a color in PLAYPAL.
+ -}
+
+type Index = DW.Word8
+
+getIndex :: G.Get Index
+getIndex = G.getWord8
+
+type Map = ARR.Array Integer Index
+
+getMap :: G.Get Map
+getMap = getList 256 getIndex >>= (\x -> return $! ARR.listArray (0,255) x)
+
+type COLORMAP = ARR.Array Integer Map
+
+getCOLORMAP :: G.Get COLORMAP
+getCOLORMAP = getList 34 getMap >>= (\x -> return $! ARR.listArray (0,33) x)
+
+{-^ End COLORMAP-}

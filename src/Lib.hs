@@ -36,6 +36,6 @@ getList n t = goGet n []
 {- | Functions for String manipulation.-}
 
 trimPaddedString :: String -> String
-trimPaddedString = filter (/= '0')
+trimPaddedString = filter (/= '\0')
 
 {- ^ End String manip-}
