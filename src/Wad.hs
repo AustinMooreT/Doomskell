@@ -38,9 +38,9 @@ getWadType = getStringle 4 >>= (\str -> return $! wadTypeFromStr str)
 data WadHeader =
   WadHeader
   {
-    wadtype :: WadType, -- Wad type
-    numLumps :: I.Int32, -- Number of lumps
-    lumpTableOffset :: I.Int32 -- Offset of lump table
+    wadtype :: WadType,
+    numLumps :: I.Int32,
+    lumpTableOffset :: I.Int32
   }
   deriving (Show, Eq)
 -- ^
@@ -130,6 +130,11 @@ getLumps :: InfoTable -> G.Get [Lump]
 getLumps = mapM (G.lookAhead . getLump)
 -- ^
 
+-- | Returns a boolean that is true whenever a given string matches a Lump's name.
+isLUMP :: String -> Lump -> Bool
+isLUMP s b = s == (lumpName $! lumpInfo b)
+-- ^
+
 {-^ End Lumps-}
 
 ---------------
@@ -204,29 +209,54 @@ getPLAYPAL :: G.Get PLAYPAL
 getPLAYPAL = getList 14 getPalette >>= (\playpal -> return $! ARR.listArray (0,14) playpal)
 -- ^
 
+-- | Returns true if a given Lump is a PLAYPAL Lump.
+isPLAYPAL :: Lump -> Bool
+isPLAYPAL = isLUMP "PLAYPAL"
+-- ^
+
 {-^ End PLAYPAL -}
 
 ------------------
 
 {- |
- - COLORMAP
- - Think of the colormap lump as a transformation to different brightness levels.
- - It maps a specific brightness level to a color in PLAYPAL.
+ - COLORMAP is a lump containing brightness and color shift information.
+ - Each index maps a specific byte to a specific palette in the PLAYPAL.
+ - Each color map is 256 byte long table.
+ - There are a total of 34 color maps indexed from 0 - 33
+ - 0 - 31 the first 32 maps index brightness in decreasing order; where 0 is max brightness and 31 is complete darkness.
+ - 32 is an invunreablity powerup and 33 is all black.
  -}
 
+-- | Type alias to a byte representing an index of the PLAYPAL.
 type Index = DW.Word8
+-- ^
 
+-- | Returns a Get monad representing the action of retrieving an index.
 getIndex :: G.Get Index
 getIndex = G.getWord8
+-- ^
 
+-- | Type alias to an array of indicies for fast indexing representing a given table of maps.
 type Map = ARR.Array Integer Index
+-- ^
 
+-- | Returns a Get monad representing the action of retrieving a Map table.
 getMap :: G.Get Map
 getMap = getList 256 getIndex >>= (\x -> return $! ARR.listArray (0,255) x)
+-- ^
 
+-- | Type alias to an array of Maps representing the COLORMAP as a whole.
 type COLORMAP = ARR.Array Integer Map
+-- ^
 
+-- | Returns a Get monad representing the action of retrieving a COLORMAP.
 getCOLORMAP :: G.Get COLORMAP
 getCOLORMAP = getList 34 getMap >>= (\x -> return $! ARR.listArray (0,33) x)
+-- ^
+
+-- | Returns true when a given lump is a COLORMAP lump.
+isCOLORMAP :: Lump -> Bool
+isCOLORMAP = isLUMP "COLORMAP"
+-- ^
 
 {-^ End COLORMAP-}

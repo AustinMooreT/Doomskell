@@ -10,82 +10,9 @@ import qualified Data.Word as DW
 import qualified Data.Array.Unboxed as ARR
 import Lib
 
-{- | PLAYPAL
- - PLAYPAL refers to the color pallette used
- - 14 palettes with 256 rgb triples in each palette
- -}
 
--- | A color is just a single color type represente by an 8 bit value
-type Color = DW.Word8
--- ^
 
--- | rbg is a three color combo
-data RGB =
-  RGB
-  {
-    red :: Color,
-    green :: Color,
-    blue :: Color
-  }
--- ^
 
--- | get's an rgb triple from a bytestring
-getRGB :: G.Get RGB
-getRGB = do
-  r <- G.getWord8
-  g <- G.getWord8
-  b <- G.getWord8
-  return $! RGB r g b
--- ^
-
--- | represents a palette of rgbs the size will always be 256
-type Palette = ARR.Array Integer RGB
--- ^
-
--- | get's a palette of 256 rgb values from a byte string.
-getPalette :: G.Get Palette
-getPalette = getList 256 getRGB >>= (\x -> return $! ARR.listArray (0,255) x)
--- ^
-
--- | Type representing the PLAYPAL lup
-type PLAYPAL = ARR.Array Integer Palette
--- ^
-
--- | Extracts a playpal lump from a bytestring.
-getPLAYPAL :: G.Get PLAYPAL
-getPLAYPAL = getList 14 getPalette >>= (\x -> return $! ARR.listArray (0,14) x)
--- ^
-
--- | turns a bytestring into a PLAYPAL structure
-readPLAYPAL :: BSL.ByteString -> PLAYPAL
-readPLAYPAL bs = G.runGet getPLAYPAL bs
--- ^
-
-{-^ End PLAYPAL-}
-
-----
-
-{- | COLORMAP
- - Think of the colormap lump as a transformation to different brightness levels.
- - It maps a specific brightness level to a color in PLAYPAL.
- -}
-
-type Index = DW.Word8
-
-getIndex :: G.Get Index
-getIndex = G.getWord8
-
-type Map = ARR.Array Integer Index
-
-getMap :: G.Get Map
-getMap = getList 256 getIndex >>= (\x -> return $! ARR.listArray (0,255) x)
-
-type COLORMAP = ARR.Array Integer Map
-
-getCOLORMAP :: G.Get COLORMAP
-getCOLORMAP = getList 34 getMap >>= (\x -> return $! ARR.listArray (0,33) x)
-
-{-^ End COLORMAP-}
 
 ------
 
