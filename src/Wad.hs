@@ -5,6 +5,7 @@ import qualified Data.Binary.Get as G
 import qualified Data.Int as I
 import qualified Data.Word as DW
 import qualified Data.Array.Unboxed as ARR
+import qualified Data.Maybe as M
 import Lib
 
 {- |
@@ -14,32 +15,28 @@ import Lib
  - The next 4 bytes are a 32 bit signed integer that represents the offset to a lookup table of lumps in the file
  -}
 
-data WadType = IWAD | PWAD | NotWad
+data WadType = IWAD | PWAD
   deriving (Show, Eq)
 
-wadTypeFromStr :: String -> WadType
-wadTypeFromStr "IWAD" = IWAD
-wadTypeFromStr "PWAD" = PWAD
-wadTypeFromStr _ = NotWad
+wadTypeFromStr :: String -> Maybe WadType
+wadTypeFromStr "IWAD" = Just IWAD
+wadTypeFromStr "PWAD" = Just PWAD
+wadTypeFromStr _ = Nothing
 
 getWadType :: G.Get WadType
-getWadType = getString 4 >>= \str -> return $! wadTypeFromStr str
+getWadType = getString 4 >>= \str -> return . M.fromJust . wadTypeFromStr $ str
 
 data WadHeader =
   WadHeader
   {
-    wadtype :: WadType,
-    numLumps :: I.Int32,
-    lumpTableOffset :: I.Int32
+    wadHeaderType :: WadType,
+    wadHeaderLumpCount :: I.Int32,
+    wadHeaderLumptTableOffset :: I.Int32
   }
   deriving (Show, Eq)
 
 getWadHeader :: G.Get WadHeader
 getWadHeader = WadHeader <$> getWadType <*> G.getInt32le <*> G.getInt32le
-
-checkForValidHeader :: WadHeader -> Bool
-checkForValidHeader (WadHeader NotWad _ _) = False
-checkForValidHeader _ = True
 
 {-^ End WAD Header -}
 
@@ -55,9 +52,6 @@ checkForValidHeader _ = True
  - and an 8 byte string representing the lumps name (names shorter than 8 bytes are padded with '\0')
  -}
 
-lumpNameSize :: Integer
-lumpNameSize = 8
-
 data LumpInfo =
   LumpInfo
   {
@@ -70,13 +64,14 @@ data LumpInfo =
 getLumpInfo :: G.Get LumpInfo
 getLumpInfo = LumpInfo <$> G.getInt32le <*> G.getInt32le <*> (getString lumpNameSize >>=
                                                               (\str -> return $! trimPaddedString str))
+  where lumpNameSize = 8
+
 type InfoTable = [LumpInfo]
 
 getInfoTable :: Integer -> G.Get InfoTable
 getInfoTable n = getList n getLumpInfo
 
 getInfoTableFromHeader :: WadHeader -> G.Get InfoTable
-getInfoTableFromHeader (WadHeader NotWad _ _) = return []
 getInfoTableFromHeader (WadHeader _ numLumps offset) = (G.skip . fromIntegral . toInteger $ offset) >>
                                                        (getInfoTable . toInteger $ numLumps)
 
@@ -318,6 +313,10 @@ data ColumnHeader =
   {
 
   }
+
+data AnimationFrames = AniA | AniB | AniC | AniD | AniE | AniF | AniG | AniH | AniI | AniJ | AniK | AniL | AniM | AniN |
+                       AniO | AniP | AniQ | AniR | AniS | AniT | AniU | AniV | AniW | AniX | AniY | AniZ
+
 {-^ End Picture Format-}
 
 ------------------------
@@ -327,13 +326,148 @@ data ColumnHeader =
  - Internally these things are called actors.
  - -}
 
+data ThingTypeInfo =
+  ThingTypeInfo
+  {
+    thingTypeInfoIndex :: Integer,
+    thingTypeInfoDoomVer :: Integer
+    
+  }
+
+data ThingType =
+  ZeroThing                        |
+  Player1Start                     |
+  Player2Start                     |
+  Player3Start                     |
+  Player4Start                     |
+  DeathMatchStart                  |
+  FormerHuman                      |
+  WolfensteinOfficer               |
+  FormerHumanSeargent              |
+  FormerHumanComando               |
+  Imp                              |
+  Demon                            |
+  Spectre                          |
+  LostSoul                         |
+  Cacodemon                        |
+  HellKnight                       |
+  BaronOfHell                      |
+  Arachnotron                      |
+  PainElemental                    |
+  Revenant                         |
+  Mancubus                         |
+  Archvile                         |
+  SpiderDemon                      |
+  CyberDemon                       |
+  BossBrain                        |
+  TeleportLanding                  |
+  BossShooter                      |
+  SpawnSpot                        |
+  Chainsaw                         |
+  Shotgun                          |
+  SuperShotgun                     |
+  Chaingun                         |
+  RocketLauncher                   |
+  Plasmagun                        |
+  BFG9000                          |
+  AmmoClip                         |
+  ShotgunShells                    |
+  Rocket                           |
+  CellCharge                       |
+  BoxOfAmmo                        |
+  BoxOfShells                      |
+  BoxOfRockets                     |
+  CellChargePack                   |
+  Backpack                         |
+  Stimpack                         |
+  Medikit                          |
+  HealthPotion                     |
+  SpiritArmor                      |
+  SecurityArmor                    |
+  CombatArmor                      |
+  MegaSphere                       |
+  SoulSphere                       |
+  Invulnerability                  |
+  BeserkPack                       |
+  Invisibility                     |
+  RadiationSuit                    |
+  ComputerMap                      |
+  LightAmplificationGoggles        |
+  BlueKeyCard                      |
+  RedKeyCard                       |
+  YellowKeyCard                    |
+  BlueSkullKey                     |
+  RedSkullKey                      |
+  YellowSkullKey                   |
+  Barrel                           |
+  BurningBarrel                    |
+  Candle                           |
+  Candleabra                       |
+  TallTechnoColumn                 |
+  TallGreenPillar                  |
+  TallRedPillar                    |
+  ShortGreenPillar                 |
+  ShortGreenPillarWithHeart        |
+  ShortGreenPillarWithBeatingHeart |
+  ShortRedPillar                   |
+  ShortRedPillarWithSkull          |
+  Stalagmite                       |
+  BurntGreyTree                    |
+  LargeBrownTree                   |
+  TallBlueFireStick                |
+  TallGreenFireStick               |
+  TallRedFireStick                 |
+  ShortBlueFireStick               |
+  ShortGreenFireStick              |
+  ShortRedFireStick                |
+  FloorLamp                        |
+  TallTechnoLamp                   |
+  ShortTechnoLamp                  |
+  EvilEyeSymbol                    |
+  FlamingSkullRock                 |
+  ImpaledHuman                     |
+  TwitchingImpaledHuman            |
+  SkullOnPole                      |
+  FiveSkullShishKebab              |
+  PileOfSkullsAndCandles           |
+  HangingVictim                    |
+  HangingVictimTwitching           |
+  HangingPairOfLegs                |
+  HangingVictim1Leg                |
+  HangingLeg                       |
+  HangingVictimNoGuts              |
+  HangingVictimNoGutsBrain         |
+  HangingTorsoLookingDown          |
+  HangingTorsoOpenSkull            |
+  HangingTorsoLookingUp            |
+  HangingTorsoNoBrain              |
+  HangingBilly                     |
+  DeadPlayer                       |
+  DeadFormerHuman                  |
+  DeadFormerSeargent               |
+  DeadImp                          |
+  DeadDemon                        |
+  DeadCacodemon                    |
+  DeadLostSoulInvisible            |
+  BloodyMessExplodedPlayer         |
+  BloodyMessAbove                  |
+  PoolOfBlood                      |
+  PoolOfGuts                       |
+  SmallPoolOfGuts                  |
+  PoolOfBrains                     |
+  HangingVictimTwitching2          |
+  HangingVictimArmsSpread          |
+  HangingVictim1Legged             |
+  HangingPairOfLegs2               |
+  HangingLeg2                      |
+  UnknownThing Integer
+
 data THINGS =
   THINGS
   {
-    thingPosX :: I.Int16,
-    thingPosY :: I.Int16,
-    thingAngle :: I.Int16,
-    thingType :: I.Int16,
-    
+    thingsPosX :: I.Int16,
+    thingsPosY :: I.Int16,
+    thingsAngle :: I.Int16,
+    thingsType :: ThingType
   }
 
