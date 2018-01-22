@@ -331,9 +331,9 @@ data ThingTypeInfo =
   {
     thingTypeInfoIndex :: Integer,
     thingTypeInfoDoomVer :: Integer
-    
   }
 
+-- | Data type representing a "thing" in DOOM.
 data ThingType =
   ZeroThing                        |
   Player1Start                     |
@@ -365,7 +365,7 @@ data ThingType =
   SpawnSpot                        |
   Chainsaw                         |
   Shotgun                          |
-  SuperShotgun                     |
+  DoubleBarreledShotgun            |
   Chaingun                         |
   RocketLauncher                   |
   Plasmagun                        |
@@ -462,8 +462,107 @@ data ThingType =
   HangingLeg2                      |
   UnknownThing Integer
 
-data THINGS =
-  THINGS
+thingTypeFromInteger :: Integer -> ThingType
+thingTypeFromInteger (-1) = ZeroThing
+thingTypeFromInteger 0    = ZeroThing
+thingTypeFromInteger 1    = Player1Start
+thingTypeFromInteger 2    = Player2Start
+thingTypeFromInteger 3    = Player3Start
+thingTypeFromInteger 4    = Player4Start
+thingTypeFromInteger 11   = DeathMatchStart
+thingTypeFromInteger 14   = TeleportLanding
+thingTypeFromInteger 3004 = FormerHuman
+thingTypeFromInteger 84   = WolfensteinOfficer
+thingTypeFromInteger 9    = FormerHumanSeargent
+thingTypeFromInteger 65   = FormerHumanComando -- Also known as heavy weapon dude in some docs (No joke)
+thingTypeFromInteger 3001 = Imp
+thingTypeFromInteger 3002 = Demon
+thingTypeFromInteger 58   = Spectre
+thingTypeFromInteger 3006 = LostSoul
+thingTypeFromInteger 3005 = Cacodemon
+thingTypeFromInteger 69   = HellKnight
+thingTypeFromInteger 3003 = BaronOfHell
+thingTypeFromInteger 68   = Arachnotron
+thingTypeFromInteger 71   = PainElemental
+thingTypeFromInteger 66   = Revenant
+thingTypeFromInteger 67   = Mancubus
+thingTypeFromInteger 64   = Archvile
+thingTypeFromInteger 7    = SpiderDemon -- Also known as spider mastermind in some docs
+thingTypeFromInteger 16   = CyberDemon
+thingTypeFromInteger 88   = BossBrain
+thingTypeFromInteger 89   = BossShooter
+thingTypeFromInteger 87   = SpawnSpot -- Not quite sure what this is yet, but the docs say "Where Todd McFarelene's guy appears"
+thingTypeFromInteger 2005 = Chainsaw
+thingTypeFromInteger 2001 = Shotgun
+thingTypeFromInteger 82   = DoubleBarreledShotgun
+thingTypeFromInteger 2002 = Chaingun
+thingTypeFromInteger 2003 = RocketLauncher
+thingTypeFromInteger 2004 = Plasmagun
+thingTypeFromInteger 2006 = BFG9000
+thingTypeFromInteger 2007 = AmmoClip
+thingTypeFromInteger 2008 = ShotgunShells
+thingTypeFromInteger 2010 = Rocket
+thingTypeFromInteger 2047 = CellCharge
+thingTypeFromInteger 2048 = BoxOfAmmo
+thingTypeFromInteger 2049 = BoxOfShells
+thingTypeFromInteger 2046 = BoxOfRockets
+thingTypeFromInteger 17   = CellChargePack
+thingTypeFromInteger 8    = Backpack
+thingTypeFromInteger 2011 = Stimpack
+thingTypeFromInteger 2012 = Medikit
+thingTypeFromInteger 2014 = HealthPotion
+thingTypeFromInteger 2015 = SpiritArmor
+thingTypeFromInteger 2018 = SecurityArmor --Green Armor
+thingTypeFromInteger 2019 = CombatArmor   --Blue Armor
+thingTypeFromInteger 83   = MegaSphere
+thingTypeFromInteger 2013 = SoulSphere
+thingTypeFromInteger 2022 = Invulnerability
+thingTypeFromInteger 2023 = BeserkPack
+thingTypeFromInteger 2024 = Invisibility
+thingTypeFromInteger 2025 = RadiationSuit
+thingTypeFromInteger 2026 = ComputerMap
+thingTypeFromInteger 2045 = LightAmplificationGoggles
+thingTypeFromInteger 5    = BlueKeyCard
+thingTypeFromInteger 40   = BlueSkullKey
+thingTypeFromInteger 13   = RedKeyCard
+thingTypeFromInteger 38   = RedSkullKey
+thingTypeFromInteger 6    = YellowKeyCard
+thingTypeFromInteger 39   = YellowSkullKey
+thingTypeFromInteger 2035 = Barrel
+thingTypeFromInteger 72   = HangingBilly -- I have no idea what this is and the docs aren't clear.
+thingTypeFromInteger 48   = TallTechnoColumn
+thingTypeFromInteger 30   = TallGreenPillar
+thingTypeFromInteger 32   = TallRedPillar
+thingTypeFromInteger 31   = ShortGreenPillar
+thingTypeFromInteger 36   = ShortGreenPillarWithBeatingHeart
+thingTypeFromInteger 33   = ShortRedPillar
+thingTypeFromInteger 37   = ShortRedPillarWithSkull
+thingTypeFromInteger 47   = Stalagmite
+thingTypeFromInteger 43   = BurntGreyTree
+thingTypeFromInteger 54   = LargeBrownTree
+thingTypeFromInteger 2028 = FloorLamp
+thingTypeFromInteger 85   = TallTechnoLamp
+thingTypeFromInteger 86   = ShortTechnoLamp
+thingTypeFromInteger 34   = Candle
+thingTypeFromInteger 35   = Candleabra
+thingTypeFromInteger 44   = TallBlueFireStick
+thingTypeFromInteger 45   = TallGreenFireStick
+thingTypeFromInteger 46   = TallRedFireStick
+thingTypeFromInteger 55   = ShortBlueFireStick
+thingTypeFromInteger 56   = ShortGreenFireStick
+thingTypeFromInteger 57   = ShortRedFireStick
+thingTypeFromInteger 70   = BurningBarrel
+thingTypeFromInteger 41   = EvilEyeSymbol
+thingTypeFromInteger 42   = FlamingSkullRock
+thingTypeFromInteger 49   = HangingVictimTwitching
+thingTypeFromInteger 63   = HangingVictimTwitching2
+thingTypeFromInteger 50   = HangingVictimArmsSpread
+thingTypeFromInteger 59   = HangingVictimArmsSpread
+
+
+
+data Thing =
+  Thing
   {
     thingsPosX :: I.Int16,
     thingsPosY :: I.Int16,
