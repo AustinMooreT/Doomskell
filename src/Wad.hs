@@ -1,3 +1,24 @@
+{--
+=================     ===============     ===============   ================
+\\ . . . . . . .\\   //. . . . . . .\\   //. . . . . . .\\  \\. . .\\// . .//
+||. . ._____. . .|| ||. . ._____. . .|| ||. . ._____. . .|| || . . .\/ . ..||
+|| . .||   ||. . || || . .||   ||. . || || . .||   ||. . || ||. . . . . . .||
+||. . ||   || . .|| ||. . ||   || . .|| ||. . ||   || . .|| || . | . . . ..||
+|| . .||   ||. _-|| ||-_ .||   ||. . || || . .||   ||. _-|| ||-_.|\ . . . .||
+||. . ||   ||-'  || ||  `-||   || . .|| ||. . ||   ||-'  || ||  `|\_ . .|..||
+|| . _||   ||    || ||    ||   ||_ . || || . _||   ||    || ||   |\ `-_/| .||
+||_-' ||  .|/    || ||    \|.  || `-_|| ||_-' ||  .|/    || ||   | \  / -_.||
+||    ||_-'      || ||      `-_||    || ||    ||_-'      || ||   | \  / | '||
+||    `'         || ||         `'    || ||    `'         || ||   | \  / |  ||
+||            .===' `===.         .==='.`===.         .===' /==. |  \/  |  ||
+||         .=='   \_|-_ `===. .==='   _|_   `===. .===' _-|/   `==  \/  |  ||
+||      .=='    _-'    `-_  `='    _-'   `-_    `='  _-'   `-_  /|  \/  |  ||
+||   .=='    _-'          `-__\._-'         `-_./__-'         `' |. /|  |  ||
+||.=='    _-'                                                     `' | /==.||
+=='    _-'                                                            \/  `==
+\   _-'                                                                `-_  /
+ `''                                                                      ``'
+--}
 module Wad () where
 
 import qualified Data.ByteString.Lazy as BSL
@@ -273,6 +294,23 @@ isTEXTURE l = or [(isLUMP "TEXTURE1" l), (isLUMP "TEXTURE2" l)]
 
 -------------------
 
+{- | SPRITES -}
+
+data Sprite = PLAY | POSS | SSWV | SPOS | CPOS | TROO | SARG | SKUL | HEAD | BOS2 |
+              BOSS | BSPI | PAIN | SKEL | FATT | VILE | SPID | CYBR | BBRN | CSAW |
+              SHOT | SGN2 | MGUN | LAUN | PLAS | BFUG | CLIP | SHEL | ROCK | CELL |
+              AMMO | SBOX | BROK | CELP | BPAK | STIM | MEDI | BON1 | BON2 | ARM1 |
+              ARM2 | MEGA | SOUL | PINV | PSTR | PINS | SUIT | PMAP | PVIS | BKEY |
+              BSKU | RKEY | RSKU | YKEY | YSKU | BAR1 | KEEN | ELEC | COL1 | COL3 |
+              COL2 | COL5 | COL4 | COL6 | SMIT | TRE1 | TRE2 | COLU | TLMP | TLP2 |
+              CAND | CBRA | TBLU | TGRE | TRED | SMBT | SMGT | SMRT | FCAN | CEYE |
+              FSKU | POL1 | GOR1 | GOR2 | GOR3 | GOR4 | GOR5 | HDB1 | HDB2 | HDB3 |
+              HDB4 | HDB5 | HDB6 | POL6 | POL4 | POL2 | POL3 | POL5 | POB1 | POB2 |
+              BRS1
+
+{-^ End SPRITES-}
+
+
 {- |
  - PNAMES
  - PNAMES represent names used by walls in doom
@@ -299,10 +337,10 @@ getPNAMES = G.getInt32le >>=
 data PictureHeader =
   PictureHeader
   {
-    pictureWidth :: I.Int16,
-    pictureHeight :: I.Int16,
-    picXOffset :: I.Int16,
-    picYOffset :: I.Int16
+    pictureWidth :: I.Int16, -- Number of columns of picture data
+    pictureHeight :: I.Int16, -- Number of rows
+    picXOffset :: I.Int16, -- Number of pixels to the left of the center where the first column gets drawn.
+    picYOffset :: I.Int16 -- Number of pixels above the origin where the top row is.
   }
 
 getPictureHeader :: G.Get PictureHeader
@@ -314,8 +352,9 @@ data ColumnHeader =
 
   }
 
-data AnimationFrames = AniA | AniB | AniC | AniD | AniE | AniF | AniG | AniH | AniI | AniJ | AniK | AniL | AniM | AniN |
-                       AniO | AniP | AniQ | AniR | AniS | AniT | AniU | AniV | AniW | AniX | AniY | AniZ
+data AnimationFrames = AniA | AniB | AniC | AniD | AniE | AniF | AniG | AniH | AniI | AniJ |
+                       AniK | AniL | AniM | AniN | AniO | AniP | AniQ | AniR | AniS | AniT |
+                       AniU | AniV | AniW | AniX | AniY | AniZ
 
 {-^ End Picture Format-}
 
@@ -575,7 +614,19 @@ thingTypeFromInteger 26   = TwitchingImpaledHuman
 thingTypeFromInteger 27   = SkullOnPole
 thingTypeFromInteger 28   = FiveSkullShishKebab
 thingTypeFromInteger 29   = PileOfSkullsAndCandles
-thingTypeFromInteger 
+thingTypeFromInteger 10   = BloodyMessExplodedPlayer
+thingTypeFromInteger 12   = BloodyMessExplodedPlayer
+thingTypeFromInteger 24   = PoolOfGuts
+thingTypeFromInteger 79   = PoolOfBlood
+thingTypeFromInteger 80   = PoolOfBlood
+thingTypeFromInteger 81   = PoolOfBrains
+thingTypeFromInteger 15   = DeadPlayer
+thingTypeFromInteger 18   = DeadFormerHuman
+thingTypeFromInteger 19   = DeadFormerSeargent
+thingTypeFromInteger 20   = DeadImp
+thingTypeFromInteger 21   = DeadDemon
+thingTypeFromInteger 22   = DeadCacodemon
+thingTypeFromInteger 23   = DeadLostSoulInvisible
 
 data Thing =
   Thing
