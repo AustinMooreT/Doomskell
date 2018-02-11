@@ -433,7 +433,7 @@ data ThingType =
   HangingVictim                    |
   HangingVictimTwitching           |
   HangingPairOfLegs                |
-  HangingVictim1Leg                |
+  HangingVictim1Legged             |
   HangingLeg                       |
   HangingVictimNoGuts              |
   HangingVictimNoGutsBrain         |
@@ -457,7 +457,7 @@ data ThingType =
   PoolOfBrains                     |
   HangingVictimTwitching2          |
   HangingVictimArmsSpread          |
-  HangingVictim1Legged             |
+  HangingVictim1Legged2            |
   HangingPairOfLegs2               |
   HangingLeg2                      |
   UnknownThing Integer
@@ -558,8 +558,24 @@ thingTypeFromInteger 49   = HangingVictimTwitching
 thingTypeFromInteger 63   = HangingVictimTwitching2
 thingTypeFromInteger 50   = HangingVictimArmsSpread
 thingTypeFromInteger 59   = HangingVictimArmsSpread
-
-
+thingTypeFromInteger 52   = HangingPairOfLegs
+thingTypeFromInteger 60   = HangingPairOfLegs2
+thingTypeFromInteger 51   = HangingVictim1Legged
+thingTypeFromInteger 61   = HangingVictim1Legged2
+thingTypeFromInteger 53   = HangingLeg
+thingTypeFromInteger 62   = HangingLeg2
+thingTypeFromInteger 73   = HangingVictimNoGuts
+thingTypeFromInteger 74   = HangingVictimNoGutsBrain
+thingTypeFromInteger 75   = HangingTorsoLookingDown
+thingTypeFromInteger 76   = HangingTorsoOpenSkull
+thingTypeFromInteger 77   = HangingTorsoLookingUp
+thingTypeFromInteger 78   = HangingTorsoNoBrain
+thingTypeFromInteger 25   = ImpaledHuman
+thingTypeFromInteger 26   = TwitchingImpaledHuman
+thingTypeFromInteger 27   = SkullOnPole
+thingTypeFromInteger 28   = FiveSkullShishKebab
+thingTypeFromInteger 29   = PileOfSkullsAndCandles
+thingTypeFromInteger 
 
 data Thing =
   Thing
