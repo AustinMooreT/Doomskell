@@ -19,12 +19,13 @@
 \   _-'                                                                `-_  /
  `''                                                                      ``'
 --}
+
 module Wad () where
 
 import qualified Data.ByteString.Lazy as BSL
 import qualified Data.Binary.Get as G
 import qualified Data.Int as I
-import qualified Data.Word as DW
+import qualified Data.Word as W
 import qualified Data.Array.Unboxed as ARR
 import qualified Data.Maybe as M
 import Lib
@@ -50,8 +51,8 @@ getWadType = getString 4 >>= \str -> return . M.fromJust . wadTypeFromStr $ str
 data WadHeader =
   WadHeader
   {
-    wadHeaderType :: WadType,
-    wadHeaderLumpCount :: I.Int32,
+    wadHeaderType             :: WadType,
+    wadHeaderLumpCount        :: I.Int32,
     wadHeaderLumptTableOffset :: I.Int32
   }
   deriving (Show, Eq)
@@ -77,14 +78,14 @@ data LumpInfo =
   LumpInfo
   {
     lumpOffset :: I.Int32,
-    lumpSize :: I.Int32,
-    lumpName :: String
+    lumpSize   :: I.Int32,
+    lumpName   :: String
   }
   deriving (Show, Eq)
 
 getLumpInfo :: G.Get LumpInfo
 getLumpInfo = LumpInfo <$> G.getInt32le <*> G.getInt32le <*> (getString lumpNameSize >>=
-                                                              (\str -> return $! trimPaddedString str))
+                                                              \str -> return $! trimPaddedString str)
   where lumpNameSize = 8
 
 type InfoTable = [LumpInfo]
@@ -107,7 +108,7 @@ data Lump =
 getLump :: LumpInfo -> G.Get Lump
 getLump info = (G.skip . fromIntegral . toInteger . lumpOffset $ info) >>
                (G.getLazyByteString . fromIntegral . toInteger . lumpSize $ info) >>=
-               (\bytes -> return $! Lump info bytes)
+               \bytes -> return $! Lump info bytes
 
 getLumps :: InfoTable -> G.Get [Lump]
 getLumps = mapM (G.lookAhead . getLump)
@@ -128,7 +129,7 @@ isLUMP s b = s == (lumpName $! lumpInfo b)
 data WAD = WAD
          {
            wadHeader :: WadHeader,
-           wadLumps :: [Lump]
+           wadLumps  :: [Lump]
          }
   deriving (Show, Eq)
 
@@ -148,14 +149,14 @@ getWAD = WAD <$> header <*> lumps
  - The PLAYPAL contains 14 palettes with 256 3 byte RGB triples in each palette.
  -}
 
-type ColorChannel = DW.Word8
+type ColorChannel = W.Word8
 
 data RGB =
   RGB
   {
-    redChannel :: ColorChannel,
+    redChannel   :: ColorChannel,
     greenChannel :: ColorChannel,
-    blueChannel :: ColorChannel
+    blueChannel  :: ColorChannel
   }
 
 getRGB :: G.Get RGB
@@ -187,7 +188,7 @@ isPLAYPAL = isLUMP "PLAYPAL"
  - 32 is an invunreablity powerup and 33 is all black.
  -}
 
-type Index = DW.Word8
+type Index = W.Word8
 
 getIndex :: G.Get Index
 getIndex = G.getWord8
@@ -214,12 +215,12 @@ isCOLORMAP = isLUMP "COLORMAP"
  - It is just 4000 bytes representing an 80 by 25 ansi screen.
  -}
 
-type AnsiColor = DW.Word8
+type AnsiColor = W.Word8
 
 data AnsiCharacter =
   AnsiCharacter
   {
-    ansiChar :: Char,
+    ansiChar  :: Char,
     ansiColor :: AnsiColor
   }
 
@@ -249,8 +250,8 @@ getENDOOM = getList 2000 getAnsiCharacter >>= \x -> return $! ARR.listArray (0, 
 data Patch =
   Patch
   {
-    patchXOffset :: I.Int16,
-    patchYOffset :: I.Int16,
+    patchXOffset   :: I.Int16,
+    patchYOffset   :: I.Int16,
     patchNameIndex :: I.Int16
   }
 
@@ -263,28 +264,28 @@ getPatches n = getList n getPatch
 data Texture =
   Texture
   {
-    textureName :: String,
-    textureWidth :: I.Int16,
-    textureHeight :: I.Int16,
+    textureName    :: String,
+    textureWidth   :: I.Int16,
+    textureHeight  :: I.Int16,
     texturePatches :: [Patch]
   }
 
 getTexture :: G.Get Texture
 getTexture = getString 8 >>=
-              \name -> G.skip 4 >>=
-              \_ -> G.getInt16le >>=
-              \width -> G.getInt16le >>=
-              \height -> G.skip 4 >>=
-              \_ -> G.getInt16le >>=
+              \name       -> G.skip 4 >>=
+              \_          -> G.getInt16le >>=
+              \width      -> G.getInt16le >>=
+              \height     -> G.skip 4 >>=
+              \_          -> G.getInt16le >>=
               \numPatches -> (getPatches $! toInteger numPatches) >>=
-              \patches -> return $! Texture name width height patches
+              \patches    -> return $! Texture name width height patches
 
 type TEXTURE = [Texture]
 
 getTEXTURE :: G.Get TEXTURE
 getTEXTURE = G.lookAhead G.getInt32le >>=
-             \nums -> G.lookAhead (getList  (fromIntegral $! toInteger nums) G.getInt32le) >>=
-             \ptrs -> (return $! map (fromIntegral . toInteger) ptrs) >>=
+             \nums    -> G.lookAhead $! getList  (fromIntegral $! toInteger nums) G.getInt32le >>=
+             \ptrs    -> (return $! map (fromIntegral . toInteger) ptrs) >>=
              \offsets -> mapM (\x -> G.lookAhead (G.skip x >>= (\_ -> getTexture))) offsets
 
 isTEXTURE :: Lump -> Bool
@@ -326,7 +327,7 @@ type PNAMES = [String]
 getPNAMES :: G.Get PNAMES
 getPNAMES = G.getInt32le >>=
             \numNames -> getList (fromIntegral . toInteger $ numNames) getPNAME >>=
-            \names -> return names
+            \names    -> return names
 
 {-^ End PNAMES-}
 
@@ -337,20 +338,51 @@ getPNAMES = G.getInt32le >>=
 data PictureHeader =
   PictureHeader
   {
-    pictureWidth :: I.Int16, -- Number of columns of picture data
+    pictureWidth  :: I.Int16, -- Number of columns of picture data
     pictureHeight :: I.Int16, -- Number of rows
-    picXOffset :: I.Int16, -- Number of pixels to the left of the center where the first column gets drawn.
-    picYOffset :: I.Int16 -- Number of pixels above the origin where the top row is.
+    picXOffset    :: I.Int16, -- Number of pixels to the left of the center where the first column gets drawn.
+    picYOffset    :: I.Int16  -- Number of pixels above the origin where the top row is.
   }
 
 getPictureHeader :: G.Get PictureHeader
 getPictureHeader = PictureHeader <$> G.getInt16le <*> G.getInt16le <*> G.getInt16le <*> G.getInt16le
 
-data ColumnHeader =
-  ColumnHeader
-  {
+--TODO Column was implemented incorrectly. See https://zdoom.org/wiki/patch
 
+data Column =
+  Column
+  {
+    columnDownwardsOffset   :: W.Word8,
+    columnColoredPixelCount :: W.Word8,
+    columnPixels            :: [W.Word8]
   }
+
+getColumn :: G.Get Column
+getColumn = G.getWord8 >>=
+            \offset -> G.getWord8 >>=
+            \count  -> G.skip 1 >>=
+            \_      -> getList (fromIntegral . toInteger $ count) G.getWord8 >>=
+            \pixels -> return $! Column offset count pixels
+
+getColumnAtOffset :: Integer -> G.Get Column
+getColumnAtOffset n = G.skip (fromIntegral n) >>= \_ -> getColumn
+
+data RawPicture =
+  RawPicture
+  {
+    rawPicHeader  :: PictureHeader,
+    rawPicGolumns :: [Column]
+  }
+
+getRawPicture :: G.Get RawPicture
+getRawPicture = G.lookAhead getPictureHeader >>=
+                \header  -> G.lookAhead (getPictureHeader >>= \_ -> getList (fromIntegral .toInteger . pictureWidth $ header) G.getInt32le) >>=
+                \offsets -> mapM (G.lookAhead . getColumnAtOffset . fromIntegral . toInteger) offsets >>=
+                \columns -> return $! RawPicture header columns
+
+type Picture = [[RGB]]
+
+rawToPicture :: 
 
 data AnimationFrames = AniA | AniB | AniC | AniD | AniE | AniF | AniG | AniH | AniI | AniJ |
                        AniK | AniL | AniM | AniN | AniO | AniP | AniQ | AniR | AniS | AniT |
@@ -368,7 +400,7 @@ data AnimationFrames = AniA | AniB | AniC | AniD | AniE | AniF | AniG | AniH | A
 data ThingTypeInfo =
   ThingTypeInfo
   {
-    thingTypeInfoIndex :: Integer,
+    thingTypeInfoIndex   :: Integer,
     thingTypeInfoDoomVer :: Integer
   }
 
@@ -631,9 +663,9 @@ thingTypeFromInteger 23   = DeadLostSoulInvisible
 data Thing =
   Thing
   {
-    thingsPosX :: I.Int16,
-    thingsPosY :: I.Int16,
+    thingsPosX  :: I.Int16,
+    thingsPosY  :: I.Int16,
     thingsAngle :: I.Int16,
-    thingsType :: ThingType
+    thingsType  :: ThingType
   }
 
