@@ -145,6 +145,41 @@ getWAD = WAD <$> header <*> lumps
 --------------
 
 {- |
+ - COLORMAP is a lump containing brightness and color shift information.
+ - Each index maps a specific byte to a specific palette in the PLAYPAL.
+ - Each color map is 256 byte long table.
+ - There are a total of 34 color maps indexed from 0 - 33
+ - 0 - 31 the first 32 maps index brightness in decreasing order; where 0 is max brightness and 31 is complete darkness.
+ - 32 is an invunreablity powerup and 33 is all black.
+ -}
+
+type PaletteIndex = W.Word8
+type MapIndex = W.Word8
+type Map = ARR.Array MapIndex PaletteIndex
+
+getMap :: G.Get Map
+getMap = getList 256 G.getWord8 >>= \x -> return $! ARR.listArray (0,255) x
+
+type ColorMapIndex = W.Word8
+type COLORMAP = ARR.Array ColorMapIndex Map
+
+getCOLORMAP :: G.Get COLORMAP
+getCOLORMAP = getList 34 getMap >>= \x -> return $! ARR.listArray (0,33) x
+
+colorMapByte :: Map -> MapIndex -> PaletteIndex
+colorMapByte cmap byte = cmap ARR.! (fromIntegral $! toInteger byte)
+
+selectMap :: COLORMAP -> ColorMapIndex -> (MapIndex -> PaletteIndex)
+selectMap cmap byte = colorMapByte (cmap ARR.! (fromIntegral $! toInteger byte))
+
+isCOLORMAP :: Lump -> Bool
+isCOLORMAP = isLUMP "COLORMAP"
+
+{-^ End COLORMAP -}
+
+-------------------
+
+{- |
  - PLAYPAL represents the colors used by DOOM in representing pixel colors.
  - The PLAYPAL contains 14 palettes with 256 3 byte RGB triples in each palette.
  -}
@@ -162,15 +197,22 @@ data RGB =
 getRGB :: G.Get RGB
 getRGB = RGB <$> G.getWord8 <*> G.getWord8 <*> G.getWord8
 
-type Palette = ARR.Array Integer RGB
+type Palette = ARR.Array PaletteIndex RGB
 
 getPalette :: G.Get Palette
 getPalette = getList 256 getRGB >>= \palette -> return $! ARR.listArray (0,255) palette
 
+type PlaypalIndex = W.Word8
 type PLAYPAL = ARR.Array Integer Palette
 
 getPLAYPAL :: G.Get PLAYPAL
 getPLAYPAL = getList 14 getPalette >>= \playpal -> return $! ARR.listArray (0,14) playpal
+
+selectRGB :: Palette -> PaletteIndex -> RGB
+selectRGB palette byte = palette ARR.! (fromIntegral $! toInteger byte)
+
+selectPalette :: PLAYPAL -> PlaypalIndex -> (PaletteIndex -> RGB)
+selectPalette ppal byte = selectRGB (ppal ARR.! (fromIntegral $! toInteger byte))
 
 isPLAYPAL :: Lump -> Bool
 isPLAYPAL = isLUMP "PLAYPAL"
@@ -179,36 +221,79 @@ isPLAYPAL = isLUMP "PLAYPAL"
 
 ------------------
 
-{- |
- - COLORMAP is a lump containing brightness and color shift information.
- - Each index maps a specific byte to a specific palette in the PLAYPAL.
- - Each color map is 256 byte long table.
- - There are a total of 34 color maps indexed from 0 - 33
- - 0 - 31 the first 32 maps index brightness in decreasing order; where 0 is max brightness and 31 is complete darkness.
- - 32 is an invunreablity powerup and 33 is all black.
- -}
+{- | Picture format -}
 
-type Index = W.Word8
+data PictureHeader =
+  PictureHeader
+  {
+    pictureWidth  :: I.Int16, -- Number of columns of picture data
+    pictureHeight :: I.Int16, -- Number of rows
+    picXOffset    :: I.Int16, -- Number of pixels to the left of the center where the first column gets drawn.
+    picYOffset    :: I.Int16  -- Number of pixels above the origin where the top row is.
+  }
 
-getIndex :: G.Get Index
-getIndex = G.getWord8
+getPictureHeader :: G.Get PictureHeader
+getPictureHeader = PictureHeader <$> G.getInt16le <*> G.getInt16le <*> G.getInt16le <*> G.getInt16le
 
-type Map = ARR.Array Integer Index
+data Column =
+  Column
+  {
+    columnDownwardsOffset   :: W.Word8,
+    columnColoredPixelCount :: W.Word8,
+    columnPixels            :: [W.Word8]
+  }
 
-getMap :: G.Get Map
-getMap = getList 256 getIndex >>= \x -> return $! ARR.listArray (0,255) x
+getColumn :: G.Get Column
+getColumn = G.getWord8 >>=
+            \offset -> G.getWord8 >>=
+            \count  -> G.skip 1 >>=
+            \_      -> getList (fromIntegral . toInteger $ count) G.getWord8 >>=
+            \pixels -> G.skip 1 >>=
+            \_      -> return $! Column offset count pixels
 
-type COLORMAP = ARR.Array Integer Map
+type Post = [Column]
 
-getCOLORMAP :: G.Get COLORMAP
-getCOLORMAP = getList 34 getMap >>= \x -> return $! ARR.listArray (0,33) x
 
-isCOLORMAP :: Lump -> Bool
-isCOLORMAP = isLUMP "COLORMAP"
+--NOTE This is kinda dirty and not haskellish clean it up if you can.
+getPost :: G.Get Post
+getPost = getDirtyPost >>= \columns -> return $! filter (\column -> columnDownwardsOffset column /= 255) columns
+  where
+    getDirtyPost               = G.lookAhead G.getWord8 >>= \offset -> getColumnBasedOnOffset . toInteger $ offset
+    getColumnBasedOnOffset 255 = getColumn >>= \column -> return [column]
+    getColumnBasedOnOffset _   = getColumn >>= \column -> getPost >>= \post -> return $! [column] ++ post
 
-{-^ End COLORMAP -}
+getPostAtOffset :: Integer -> G.Get Post
+getPostAtOffset n = G.skip (fromIntegral n) >>= \_ -> getPost
 
--------------------
+data RawPicture =
+  RawPicture
+  {
+    rawPicHeader  :: PictureHeader,
+    rawPicGolumns :: [Post]
+  }
+
+getRawPicture :: G.Get RawPicture
+getRawPicture = G.lookAhead getPictureHeader >>=
+                \header  -> G.lookAhead (getPictureHeader >>= \_ -> getList (fromIntegral .toInteger . pictureWidth $ header) G.getInt32le) >>=
+                \offsets -> mapM (G.lookAhead . getPostAtOffset . fromIntegral . toInteger) offsets >>=
+                \columns -> return $! RawPicture header columns
+
+type PictureColorIndexes = [[Integer]]
+
+--postToIndexes :: PictureHeader -> Post -> [Integer]
+--postToIndexes ph p = 
+
+--rawPicToIndexedPic :: RawPicture -> PictureColorIndexes
+
+type Picture = [[RGB]]
+
+data AnimationFrames = AniA | AniB | AniC | AniD | AniE | AniF | AniG | AniH | AniI | AniJ |
+                       AniK | AniL | AniM | AniN | AniO | AniP | AniQ | AniR | AniS | AniT |
+                       AniU | AniV | AniW | AniX | AniY | AniZ
+
+{-^ End Picture Format-}
+
+------------------------
 
 {- |
  - ENDOOM is a lump containing the endscreen for when you exit the game.
@@ -333,64 +418,7 @@ getPNAMES = G.getInt32le >>=
 
 ----------------
 
-{- | Picture format -}
 
-data PictureHeader =
-  PictureHeader
-  {
-    pictureWidth  :: I.Int16, -- Number of columns of picture data
-    pictureHeight :: I.Int16, -- Number of rows
-    picXOffset    :: I.Int16, -- Number of pixels to the left of the center where the first column gets drawn.
-    picYOffset    :: I.Int16  -- Number of pixels above the origin where the top row is.
-  }
-
-getPictureHeader :: G.Get PictureHeader
-getPictureHeader = PictureHeader <$> G.getInt16le <*> G.getInt16le <*> G.getInt16le <*> G.getInt16le
-
---TODO Column was implemented incorrectly. See https://zdoom.org/wiki/patch
-
-data Column =
-  Column
-  {
-    columnDownwardsOffset   :: W.Word8,
-    columnColoredPixelCount :: W.Word8,
-    columnPixels            :: [W.Word8]
-  }
-
-getColumn :: G.Get Column
-getColumn = G.getWord8 >>=
-            \offset -> G.getWord8 >>=
-            \count  -> G.skip 1 >>=
-            \_      -> getList (fromIntegral . toInteger $ count) G.getWord8 >>=
-            \pixels -> return $! Column offset count pixels
-
-getColumnAtOffset :: Integer -> G.Get Column
-getColumnAtOffset n = G.skip (fromIntegral n) >>= \_ -> getColumn
-
-data RawPicture =
-  RawPicture
-  {
-    rawPicHeader  :: PictureHeader,
-    rawPicGolumns :: [Column]
-  }
-
-getRawPicture :: G.Get RawPicture
-getRawPicture = G.lookAhead getPictureHeader >>=
-                \header  -> G.lookAhead (getPictureHeader >>= \_ -> getList (fromIntegral .toInteger . pictureWidth $ header) G.getInt32le) >>=
-                \offsets -> mapM (G.lookAhead . getColumnAtOffset . fromIntegral . toInteger) offsets >>=
-                \columns -> return $! RawPicture header columns
-
-type Picture = [[RGB]]
-
-rawToPicture :: 
-
-data AnimationFrames = AniA | AniB | AniC | AniD | AniE | AniF | AniG | AniH | AniI | AniJ |
-                       AniK | AniL | AniM | AniN | AniO | AniP | AniQ | AniR | AniS | AniT |
-                       AniU | AniV | AniW | AniX | AniY | AniZ
-
-{-^ End Picture Format-}
-
-------------------------
 
 {- |
  - THINGS represent players, monsters, pick-ups, and projectiles.
