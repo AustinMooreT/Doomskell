@@ -278,14 +278,14 @@ getRawPicture = G.lookAhead getPictureHeader >>=
                 \offsets -> mapM (G.lookAhead . getPostAtOffset . fromIntegral . toInteger) offsets >>=
                 \columns -> return $! RawPicture header columns
 
-type ColorMapColumn = Column
+type ColorMappedColumn = Column
 
-colorMapColumn :: (MapIndex -> PaletteIndex) -> Column -> ColorMapColumn
+colorMapColumn :: (MapIndex -> PaletteIndex) -> Column -> ColorMappedColumn
 colorMapColumn f (Column offset pixelCount pixels) = Column offset pixelCount $! map f pixels
 
-type ColorMapPost = Post
+type ColorMappedPost = Post
 
-colorMapPost :: (MapIndex -> PaletteIndex) -> Post -> ColorMapPost
+colorMapPost :: (MapIndex -> PaletteIndex) -> Post -> ColorMappedPost
 colorMapPost f post = map (colorMapColumn f) post
 
 type ColorMappedPicture = RawPicture
@@ -300,6 +300,24 @@ data RGBColumn =
     rgbColumnColoredPixelCount :: W.Word8,
     rgbColumnPixels            :: [RGB]
   }
+
+paletteMapColumn :: (PaletteIndex -> RGB) -> ColorMappedColumn -> RGBColumn
+paletteMapColumn f (Column offset count pixels) = RGBColumn offset count $! map f pixels
+
+type RGBPost = [RGBColumn]
+
+paletteMapPost :: (PaletteIndex -> RGB) -> ColorMappedPost -> RGBPost
+paletteMapPost f post = map (paletteMapColumn f) post
+
+data RGBPicture =
+  RGBPicture
+  {
+    rgbPicHeader :: PictureHeader,
+    rgbPicPosts  :: [RGBPost]
+  }
+
+paletteMapPicture :: (PaletteIndex -> RGB) -> ColorMappedPicture -> RGBPicture
+paletteMapPicture f (RawPicture header posts) = RGBPicture header $! map (paletteMapPost f) posts
 
 data AnimationFrames = AniA | AniB | AniC | AniD | AniE | AniF | AniG | AniH | AniI | AniJ |
                        AniK | AniL | AniM | AniN | AniO | AniP | AniQ | AniR | AniS | AniT |
