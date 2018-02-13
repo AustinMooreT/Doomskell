@@ -268,8 +268,8 @@ getPostAtOffset n = G.skip (fromIntegral n) >>= \_ -> getPost
 data RawPicture =
   RawPicture
   {
-    rawPicHeader  :: PictureHeader,
-    rawPicGolumns :: [Post]
+    rawPicHeader :: PictureHeader,
+    rawPicPosts  :: [Post]
   }
 
 getRawPicture :: G.Get RawPicture
@@ -278,14 +278,28 @@ getRawPicture = G.lookAhead getPictureHeader >>=
                 \offsets -> mapM (G.lookAhead . getPostAtOffset . fromIntegral . toInteger) offsets >>=
                 \columns -> return $! RawPicture header columns
 
-type PictureColorIndexes = [[Integer]]
+type ColorMapColumn = Column
 
---postToIndexes :: PictureHeader -> Post -> [Integer]
---postToIndexes ph p = 
+colorMapColumn :: (MapIndex -> PaletteIndex) -> Column -> ColorMapColumn
+colorMapColumn f (Column offset pixelCount pixels) = Column offset pixelCount $! map f pixels
 
---rawPicToIndexedPic :: RawPicture -> PictureColorIndexes
+type ColorMapPost = Post
 
-type Picture = [[RGB]]
+colorMapPost :: (MapIndex -> PaletteIndex) -> Post -> ColorMapPost
+colorMapPost f post = map (colorMapColumn f) post
+
+type ColorMappedPicture = RawPicture
+
+colorMapPicture :: (MapIndex -> PaletteIndex) -> RawPicture -> ColorMappedPicture
+colorMapPicture f (RawPicture header posts) = RawPicture header $! map (colorMapPost f) posts
+
+data RGBColumn =
+  RGBColumn
+  {
+    rgbColumnDownwardsOffset   :: W.Word8,
+    rgbColumnColoredPixelCount :: W.Word8,
+    rgbColumnPixels            :: [RGB]
+  }
 
 data AnimationFrames = AniA | AniB | AniC | AniD | AniE | AniF | AniG | AniH | AniI | AniJ |
                        AniK | AniL | AniM | AniN | AniO | AniP | AniQ | AniR | AniS | AniT |
@@ -297,7 +311,7 @@ data AnimationFrames = AniA | AniB | AniC | AniD | AniE | AniF | AniG | AniH | A
 
 {- |
  - ENDOOM is a lump containing the endscreen for when you exit the game.
- - It is just 4000 bytes representing an 80 by 25 ansi screen.
+ - It is just 4000 bytes representing an 80x25 ansi screen.
  -}
 
 type AnsiColor = W.Word8
